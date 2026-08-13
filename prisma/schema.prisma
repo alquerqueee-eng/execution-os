@@ -1,0 +1,160 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ActionStatus {
+  PENDING
+  COMPLETED
+  PARTIAL
+  FAILED
+  NOT_APPLICABLE
+}
+
+enum PriorityLevel {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  passwordHash  String
+  createdAt     DateTime        @default(now())
+  config        UserConfig?
+  dailyLogs     DailyLog[]
+  actions       DailyAction[]
+  routines      Routine[]
+  jobApps       JobApplication[]
+  substances    SubstanceEvent[]
+  impulses      ImpulseEvent[]
+  finances      FinancialRecord[]
+}
+
+model UserConfig {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id])
+  startDate             DateTime
+  wakeUpTarget          String   @default("06:00")
+  wakeUpLimit           String   @default("06:15")
+  sleepTarget           String   @default("22:15")
+  meditationTargetMin   Int      @default(30)
+  meditationMininumMin  Int      @default(5)
+  jobAppsTarget         Int      @default(10)
+  socialMediaLimitMin   Int      @default(60)
+  savingsPercentage     Float    @default(0.10)
+  maxSecondaryActions   Int      @default(5)
+}
+
+model DailyLog {
+  id               String      @id @default(uuid())
+  userId           String
+  user             User        @relation(fields: [userId], references: [id])
+  date             DateTime    @db.Date
+  programDay       Int
+  phase            String
+  mainMission      String
+  priority1        String
+  priority2        String
+  priority3        String
+  score            Float       @default(0)
+  adherence        Float       @default(0)
+  modeMinimum      Boolean     @default(false)
+  sleepHours       Float?
+  sleepQuality     Int?
+  notes            String?
+  actions          DailyAction[]
+
+  @@unique([userId, date])
+}
+
+model DailyAction {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  dailyLogId     String?
+  dailyLog       DailyLog?    @relation(fields: [dailyLogId], references: [id])
+  date           DateTime     @db.Date
+  category       String
+  subcategory    String?
+  description    String
+  targetValue    Float?
+  realValue      Float?       @default(0)
+  unit           String?
+  priority       PriorityLevel @default(MEDIUM)
+  isCritical     Boolean      @default(false)
+  targetTime     String?
+  status         ActionStatus @default(PENDING)
+  weight         Float        @default(1.0)
+  notes          String?
+}
+
+model Routine {
+  id           String        @id @default(uuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  category     String
+  order        Int
+  description  String
+  priority     PriorityLevel @default(MEDIUM)
+  targetTime   String?
+  isMandatory  Boolean       @default(true)
+  isActive     Boolean       @default(true)
+}
+
+model JobApplication {
+  id                  String   @id @default(uuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id])
+  date                DateTime @db.Date
+  companyRole         String
+  isRelevant          Boolean  @default(false)
+  requirementsChecked Boolean  @default(false)
+  cvAdapted           Boolean  @default(false)
+  sent                Boolean  @default(false)
+  isValid             Boolean  @default(false)
+}
+
+model SubstanceEvent {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  timestamp      DateTime @default(now())
+  substance      String
+  quantity       String?
+  trigger        String
+  impulseLevel   Int
+  consumed       Boolean
+  delayMinutes   Int?
+  notes          String?
+}
+
+model ImpulseEvent {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  timestamp     DateTime @default(now())
+  app           String
+  category      String
+  whatAvoiding  String
+  decision      String
+  durationMin   Int
+}
+
+model FinancialRecord {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  date          DateTime @db.Date
+  type          String   
+  amount        Float
+  targetSavings Float?
+  description   String
+}
